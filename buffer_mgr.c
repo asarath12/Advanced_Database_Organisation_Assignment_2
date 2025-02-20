@@ -71,7 +71,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
     printf("======================================\n");
     filePointer = NULL;
     // check that pageFileName exists
-    //printf("log entry: initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const int numPages, ReplacementStrategy strategy, void *stratData)\n");
+    printf("log entry: initBufferPool(BM_BufferPool *const bm, const char *const pageFileName, const int numPages, ReplacementStrategy strategy, void *stratData)\n");
     filePointer = fopen(pageFileName, "r+");
     int one=1;
     int zero=0;
@@ -82,7 +82,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
         return RC_FILE_NOT_FOUND;
     }
     //Allocating memory for the Buffer Pool data structure
-    BM_BufferPool *bmp = (BM_BufferPool *)malloc(sizeof(BM_BufferPool));
+    BM_BufferPool *bmp = malloc(sizeof(BM_BufferPool));
 
     //file handle for storage manager
     SM_FileHandle fHandle;
@@ -96,7 +96,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
     for (int i = 0; i < numPages; i++) {
         create_bm_page_handle(bmp, i, numPages);
     }
-    printf("The page frames are initialized.\n");
+    //printf("The page frames are initialized.\n");
 
     //declare pointer to Page table for later. (//todo make global variable)
     //BM_PageHandle (*frame_array)[numPages]=&page_in_frame;
@@ -108,7 +108,7 @@ RC initBufferPool(BM_BufferPool *const bm, const char *const pageFileName,
     bm->total_num_reads=0;//Initial number of total number of reads during the life of the buffer.
     bm->total_num_writes=0;//Initial number of total number of writes during the life of the buffer.
     bm->mgmtData=bmp;//linking const with this instance
-    printf("The size of buff: %d\n", sizeof(bmp));
+    //printf("The size of buff: %d\n", sizeof(bmp));
     //close file
     fclose(filePointer);
 
@@ -248,6 +248,7 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page){
     //close for memory leaks
     closePageFile(&fHandle);
     //because page not found,
+    printf("Page to be marked dirty not found in buffer.");
     return RC_PAGE_NOT_IN_BUFFER;
 
 }
@@ -261,6 +262,7 @@ RC markDirty (BM_BufferPool *const bm, BM_PageHandle *const page){
 RC unpinPage (BM_BufferPool *const bm, BM_PageHandle *const page){
 //Verify that the fix count is greater than 0.
     //Subtract -1 from fix count
+    //Similar to markDirty
     return RC_OK;
 }
 
@@ -272,6 +274,7 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page){
     //call writeBlock to write page to disk.
     // set dirty to 0
 
+    //Similar to markDirty, but will take pageNum from PageHandle object to call writeBlock.
     //On success, return
     return RC_OK;
 }
@@ -282,6 +285,7 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page){
  */
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
 const PageNumber pageNum){
+    //Similar to markDirty
 
     return RC_OK;
 }
@@ -294,22 +298,78 @@ PageNumber *getFrameContents (BM_BufferPool *const bm){
 }
 
 bool *getDirtyFlags (BM_BufferPool *const bm){
+    int* dirtFlagsList[bm->numPages];//initialize array
+    //looping through Page Table
+    BM_BufferPool *bmp;
+    bmp = bm->mgmtData; //linking const and instance
+    //check link exists
+    if (bmp == NULL) {return RC_ERROR;}
+    //start at first node of page Table
+    BM_PageHandle *disFrame = bm->first;
+    SM_FileHandle fHandle;
 
-    return RC_OK;
+    //open page file first
+    if (openPageFile ((char *)(bm->pageFile),&fHandle)!=RC_OK) {
+        return RC_ERROR;
+    }
+    // Iterate through linked list of Page Table, if pinned = 0 and dirty !=0, write page to disk.
+    do {
+        if (disFrame->dirty==1) {
+
+            //set dirty in array
+            dirtFlagsList[disFrame->frameNumber]=1;//frameNumber should equal array position
+
+        }else {
+            dirtFlagsList[disFrame->frameNumber]=0;
+        }
+        disFrame=disFrame->next;//step to next frame
+    }while (disFrame!=bm->last);
+    //close for memory leaks
+    closePageFile(&fHandle);
+    //because page not found,
+    return dirtFlagsList;//return array
 }
 
 int *getFixCounts (BM_BufferPool *const bm){
+    int* fixCounts[bm->numPages];
+    //looping through Page Table
+    BM_BufferPool *bmp;
+    bmp = bm->mgmtData; //linking const and instance
+    //check link exists
+    if (bmp == NULL) {return RC_ERROR;}
+    //start at first node of page Table
+    BM_PageHandle *disFrame = bm->first;
+    SM_FileHandle fHandle;
 
-    return RC_OK;
+    //open page file first
+    if (openPageFile ((char *)(bm->pageFile),&fHandle)!=RC_OK) {
+        return RC_ERROR;
+    }
+    // Iterate through linked list of Page Table, if pinned = 0 and dirty !=0, write page to disk.
+    do {
+        if (disFrame->pinned>0) {
+
+            //set pinned in array to value in BM_PageHandle object
+            fixCounts[disFrame->frameNumber]=disFrame->pinned;//frameNumber should equal array position
+
+        }else {
+            fixCounts[disFrame->frameNumber]=0;
+        }
+        disFrame=disFrame->next;//step to next frame
+    }while (disFrame!=bm->last);
+    //close for memory leaks
+    closePageFile(&fHandle);
+    //because page not found,
+    return fixCounts;
 }
 
 int getNumReadIO (BM_BufferPool *const bm){
-    //bm->total_num_reads //the information looking for
-    return RC_OK;
+    int numReadCount = bm->total_num_reads; //the information looking for
+    return numReadCount;//the count
 }
 
 int getNumWriteIO (BM_BufferPool *const bm){
-
-    return RC_OK;
+    int numWriteCount = bm->total_num_writes;
+    return numWriteCount; //the count
 }
 
