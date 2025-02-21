@@ -1,0 +1,23 @@
+CC = gcc
+CFLAGS = -Wall -g
+OBJECT_FILES = test_assign1_1.o storage_mgr.o dberror.o
+
+all: test_assign1
+
+test_assign1: $(OBJECT_FILES)
+	$(CC) $(CFLAGS) -o test_assign1 $(OBJECT_FILES)
+
+test_assign1_1.o: test_assign1_1.c
+	$(CC) $(CFLAGS) -c test_assign1_1.c
+
+storage_mgr.o: storage_mgr.c
+	$(CC) $(CFLAGS) -c storage_mgr.c
+
+dberror.o: dberror.c
+	$(CC) $(CFLAGS) -c dberror.c
+
+run: test_assign1
+	./test_assign1
+
+clean:
+	@if [ -f test_assign1 ]; then rm -f test_assign1 $(OBJECT_FILES); fi
