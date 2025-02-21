@@ -200,8 +200,7 @@ RC shutdownBufferPool(BM_BufferPool *const bm) {
  */
 RC forceFlushPool(BM_BufferPool *const bm) {
     // load data
-    BM_BufferPool *bmp;
-    bmp = bm->mgmtData; //linking const and instance
+    BM_BufferPool *bmp = bm->mgmtData; //linking const and instance
     //check link exists
     if (bmp == NULL) {return RC_FLUSH_FAILED;}
     //start at first node of page Table
@@ -214,7 +213,7 @@ RC forceFlushPool(BM_BufferPool *const bm) {
     }
     // Iterate through linked list of Page Table, if pinned = 0 and dirty !=0, write page to disk.
     do {
-        if (disFrame->dirty==0 && disFrame->pinned==0) {
+        if (disFrame->dirty==0 && disFrame->pinned==0) { //if frame is pinned, or null, do nothing
             //write to Block
             if (writeBlock(disFrame->pageNum,&fHandle, disFrame->data)!=RC_OK){return RC_FLUSH_FAILED;}
             //set dirty=0
@@ -295,9 +294,43 @@ RC forcePage (BM_BufferPool *const bm, BM_PageHandle *const page){
  */
 RC pinPage (BM_BufferPool *const bm, BM_PageHandle *const page,
 const PageNumber pageNum){
-    //Similar to markDirty
+    /*
+     *NO!  Ignore me!
 
+    //Similar to markDirty
+    BM_BufferPool *bmp;
+    bmp = &bm->mgmtData; //linking const and instance
+    //check link exists
+    if (bmp == NULL) {return RC_ERROR;}
+    //start at first node of page Table
+    BM_PageHandle *disFrame = bm->first;
+    SM_FileHandle fHandle;
+    /*
+    //open page file first
+    if (openPageFile ((char *)(&bm->pageFile),&fHandle)!=RC_OK) {
+        return RC_ERROR;
+    }
+    openPageFile ((char *)(bm->pageFile),&fHandle);
+
+    // Iterate through linked list of Page Table, if matches, write to disk
+    do {
+        if (disFrame->pageNum==page->pageNum) {
+
+            //set dirty=
+            disFrame->pinned++;
+            printf("Page pinned\n");
+            return RC_OK;
+        }
+        disFrame=disFrame->next;//step to next frame
+    }while (disFrame!=bm->last);
+    //close for memory leaks
+    //closePageFile(&fHandle);
+    //because page not found,
+    printf("Page to be pinned not found in buffer.");
+    return RC_PAGE_NOT_IN_BUFFER;
+    */
     return RC_OK;
+
 }
 
 /*
@@ -380,7 +413,7 @@ int *getFixCounts (BM_BufferPool *const bm){
     //because page not found,
     return &fixCounts;
 }
-*/
+
 int getNumReadIO (BM_BufferPool *const bm){
     int numReadCount = bm->total_num_reads; //the information looking for
     return numReadCount;//the count
@@ -390,4 +423,4 @@ int getNumWriteIO (BM_BufferPool *const bm){
     int numWriteCount = bm->total_num_writes;
     return numWriteCount; //the count
 }
-
+*/
