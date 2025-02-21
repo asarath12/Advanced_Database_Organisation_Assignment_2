@@ -26,9 +26,10 @@ typedef int PageNumber;
 typedef struct BM_PageHandle {
 	PageNumber pageNum;//the page number of the buffered file in this frame spot, this will allow quick lookups into buffer pool.
 	char *data; //location pointer to the memory of page in buffer pool
-	int dirty; //Flag to mark if page is dirty (0= clean)
-	int pinned; //count to track number of users who have pinned this page
-	int frameNumber; //the number of this Frame in the Buffer.  The total is given elsewhere.
+	int dirtyFlag; //Flag to mark if page is dirty (0= clean)
+	int fixCount; //count to track number of users who have pinned this page
+	int frameNum; //the number of this Frame in the Buffer.  The total is given elsewhere.
+	int refBit;			// Used for CLOCK algorithm to identify recently accessed pages
 	struct BM_PageHandle *next, *prev;
 } BM_PageHandle;
 /*This is the structure for the Buffer Pool.  It has pointers to the Page Table
@@ -36,14 +37,16 @@ typedef struct BM_PageHandle {
  */
 
 typedef struct BM_BufferPool {
+	int occupiedCount;		// Tracks the number of frames currently occupied in the buffer
 	char *pageFile; //The file that the pages come from
 	int numPages; //Total number of Pages in the Buffer Pool
 	ReplacementStrategy strategy;
-	int total_num_reads; //Total number of times any page has been read.  Will initiate at zero.
-	int total_num_writes; //Total number of times any page has been written.  Will initiate at zero.
+	int numRead; //Total number of times any page has been read.  Will initiate at zero.
+	int numWrite; //Total number of times any page has been written.  Will initiate at zero.
 	void *mgmtData; // use this one to store the bookkeeping info your buffer
+	PageNumber *frameContent;	// Array storing the page numbers currently loaded in frames
 	// manager needs for a buffer pool
-	BM_PageHandle *first,*last, *current; //Pointers to the first, last, and current frame in the Page Table
+	BM_PageHandle *head,*tail, *start; //Pointers to the first, last, and current frame in the Page Table
 } BM_BufferPool;
 
 
