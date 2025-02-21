@@ -14,10 +14,10 @@ typedef int RC;
 #define RC_FILE_HANDLE_NOT_INIT 2
 #define RC_WRITE_FAILED 3
 #define RC_READ_NON_EXISTING_PAGE 4
-//added error codes for more specificity in debugging user errors
 #define RC_FILE_ALREADY_EXISTS 5
 #define RC_ERROR 6
 #define RC_READ_FAILED 7
+#define RC_BUFFER_POOL_HAS_PINNED_PAGES 8
 #define RC_APPEND_FAILED 9
 
 #define RC_RM_COMPARE_VALUE_OF_DIFFERENT_DATATYPE 200
