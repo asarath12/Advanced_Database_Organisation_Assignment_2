@@ -143,6 +143,7 @@ chmod -R 777 /home/user1/Downloads/vscode/assignment_2/4/assign2
 
 ./test1 0>1.txt 1>1.txt 2>1.txt
 
-(5)run the test case 2 and output in the file 2.txt:
+(5)run the test case 2 and output in the file 2.txt: 
+
 ./test2 0>2.txt 1>2.txt 2>2.txt
 
