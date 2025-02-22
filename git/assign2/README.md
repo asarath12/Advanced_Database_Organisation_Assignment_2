@@ -68,7 +68,7 @@ The assign2 folder contains the following files:
 Also, we have made the buffer pool functions thread safe by adding pthread_mutex_lock and pthread_mutex_unlock in appropriate places implementing it threadsafe.
 
 ### Output PDF:
-We have attached a PDF in assign2 directory called, which contains the screenshots of successful execution of test_assign2_1 and test_assign2_2 with threadSafe implementation.
+We have attached a PDF in assign2 directory called "Assignment2Screenshots.pdf", which contains the screenshots of successful execution of test_assign2_1 and test_assign2_2 with threadSafe implementation.
 
 ## Functions
 
