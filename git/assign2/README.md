@@ -18,7 +18,7 @@ Anish Roy:
 - int getNumReadIO (BM_BufferPool *const bm) 
 - int getNumWriteIO (BM_BufferPool *const bm) 
 - implementing thread safe logic
-- merging code and tesing
+- merging code and running tests
 
     
 
