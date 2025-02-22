@@ -129,14 +129,20 @@ The below mentioned commands should be executed to rcompile and execute the test
 Navigate to the folder where the files are present. Run the below shonw commands:
 
 (1) 
+
 make clean
 
 (2) 
+
 make
+
 (3)
 chmod -R 777 <fullFilepath_of_the_directory_where_files_are_present>
+
 Example: filepath of directory=/home/user1/Downloads/vscode/assignment_2/4/assign2
+
 Commands issued:
+
 chmod -R 777 /home/user1/Downloads/vscode/assignment_2/4/assign2
 
 (4)run the test case 1 and output in the file 1.txt:
