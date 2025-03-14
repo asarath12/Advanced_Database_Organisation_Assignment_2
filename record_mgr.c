@@ -50,6 +50,10 @@ typedef struct RM_ScanMgmt
 //todo add this global variable.
 int totalPages;		//Global Variable to store the 'TOTAL NUMBER OF PAGES IN A PAGE FILE'
 
+SM_FileHandle fh_rec_mgr;
+int tombStonedRIDsList[10000];
+int currentScannedRecord = 0;
+
 // table and manager
 /*
  * This method is used to calculate the Offset associated
@@ -92,6 +96,9 @@ RC attrOffset (Schema *schema, int attrNum, int *result)
  */
 extern RC initRecordManager (void *mgmtData)
 {
+	for (int i = 0; i < 10000; i++) {
+		tombStonedRIDsList[i] = -99;
+	}
 	/*
 	 * All the initializations are done,
 	 * nothing to be done here
@@ -325,36 +332,68 @@ RC checkRecord (RM_TableData *rel, Record *record)
 // handling records in a table
 extern RC insertRecord (RM_TableData *rel, Record *record)
     {
-
+	printf("Insert record\n");//looking for error, remove later.
     //using checkRecord to check Record is valid.
     if(checkRecord(rel, record) != RC_OK)
       {return RC_RM_RECORD_INVALID;}
     //verify that *result is set before continuing
+    Value *result;
+	RID rid;
+	rid.page = 0;
+	rid.slot = 0;
+
     //if(attrOffset (Schema *schema, int attrNum, int *result)==RC_OK){
-    //todo scan for open spot on open pages in buffer, if open doesn't exist, add new to end.
-    //create condition for scan of empty slot (all nulls)
 
-    //scan for empty slot in buffered pages.  Start with first page in buffer, fill to end if needed.
-    //if no page in buffer has empty slot, open another page in pagefile.  scan pages.
-    //if no existing page has empty slot, create new pages to pagefile.
+    //scan for empty slot in tombstone list
+	int tombstonedRID =0;//set encoded RID variable
+	for(int i = 0; i < 10000; i++) {
+		if (tombStonedRIDsList[i] == -99) {
+			tombstonedRID = tombStonedRIDsList[i-1];//save the encoded RID
+			tombStonedRIDsList[i-1] = -99; //set tombstone back to empty
+			break;// break the loop or won't find last RID
+		}
 
-    //todo take empty spot and set RID in Record structure.
-    //pin page
-    //using empty slot, write in record
-    //set RID in Record structure
-    //update tombstone?
-    //unpin page
+	}
+	if (tombstonedRID!=0 || tombstonedRID!=-99) {// a tombstone RID was returned
+		//use to update record
+		//first, set record's new location
+		record->id.page = tombstonedRID/10000;
+		record->id.slot = tombstonedRID%10000;
+		//use update
+		updateRecord(rel, record);
+	}
 
-    
+	else // assume pages full, add new page to end.
+	{
+		BM_PageHandle *page = MAKE_PAGE_HANDLE();
+		record->id.page = rid.page+1;//new page number
+		record->id.slot = 0;//first slot on new page
+		/*
+		SM_FileHandle *fh = ((RM_RecordMgmt *)rel -> mgmtData->(BM_BufferPool *bm)->file;
+		appendEmptyBlock(SM_FileHandle *fh, emptyRecord);
+		*/
+		free(page);
+	}
+
+	//memory
+
     return RC_OK;
     }
 
 extern RC deleteRecord (RM_TableData *rel, RID id) {
+	printf("Delete record\n");//looking for error, remove later.
 	//todo go to record on page.
 	//Get page number of record
 	int tempPage=id.page;
 	//Get slot number of record
 	int tempSlot=id.slot;
+	//Set the tombstone
+	for (int i=0; i<10000; i++) {
+		if (tombStonedRIDsList[i]==-99) {
+			tombStonedRIDsList[i] = tempPage*10000+tempSlot;//encoding RID of deleted record.
+		}
+	}
+
 	//create temp record object
 	Record *tempEmpty=(Record*)malloc(sizeof(Record));
 	//tempaddy
@@ -369,13 +408,13 @@ extern RC deleteRecord (RM_TableData *rel, RID id) {
 		pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page,tempPage);//pin the page
         //delete information by overwriting the record.  And only the single slot.
 		//overwrite record.  First, determine offset
-		int offsetSize=getRecordSize((RM_TableData *)rel->schema);
+		int offsetSize=getRecordSize(rel->schema);
 		int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
 		//overwrites entire page.
 		memset(page->data,'\0',strlen(page->data));
 		sprintf(page->data,"%s",tempVoid);
 
-		markDirty(tempAdd,tempPage);//mark the page Dirty
+		markDirty(tempAdd,page);//mark the page Dirty
 		unpinPage(tempAdd,page);//Done with page, unpin
 		forcePage(tempAdd,page);//write the page
 		//free all memory
@@ -390,6 +429,7 @@ extern RC deleteRecord (RM_TableData *rel, RID id) {
 }
 
 extern RC updateRecord (RM_TableData *rel, Record *record) {
+	printf("Update record\n");//looking for error, remove later.
 	//todo use checkRecord to check that Record is OK.
 	if(checkRecord(rel, record) != RC_OK)
 	{return RC_RM_UNKOWN_DATATYPE;}
@@ -411,7 +451,7 @@ extern RC updateRecord (RM_TableData *rel, Record *record) {
 		//Serialize updated record:
 		char *new_record = serializeRecord(record, rel->schema);
 		//setting new record.  First, determine offset
-		int offsetSize=getRecordSize((RM_TableData *)rel->schema);
+		int offsetSize=getRecordSize(rel->schema);
 		int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
 		//go to start of page data, skip to offset distance, write new record
 		memset(page->data, '\0', strlen(page->data));
@@ -424,7 +464,7 @@ extern RC updateRecord (RM_TableData *rel, Record *record) {
 		memcpy(target_address, new_record, strlen(new_record));
 		*/
 		//after write new record, then process page.
-		markDirty(tempAdd,tempPage);//mark the page Dirty
+		markDirty(tempAdd,page);//mark the page Dirty
 		unpinPage(tempAdd,page);//Done with page, unpin
 		forcePage(tempAdd,page);//write the page
 		//free all memory
@@ -439,6 +479,7 @@ extern RC updateRecord (RM_TableData *rel, Record *record) {
 
 }
 extern RC getRecord (RM_TableData *rel, RID id, Record *record) {
+	printf("get record\n");//looking for error, remove later.
 	//Get page number of record
 	int tempPage=record->id.page;
 	//Get slot number of record
@@ -455,7 +496,7 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record) {
 		pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page,tempPage);//pin the page
 		//Get the information.  And only the single slot.
 		//First, determine offset
-		int offsetSize=getRecordSize((RM_TableData *)rel->schema);
+		int offsetSize=getRecordSize(rel->schema);
 		int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
 		//temp to store the page data
 		char *r_data = (char*)malloc(sizeof(char) * strlen(page->data));
@@ -480,8 +521,12 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record) {
 
 	}
 
-// scans (todo rst)
+/* Starts a scan,
+ *
+ *
+ */
 extern RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond) {
+	printf("Start Scan\n");//looking for error, remove later.
 	scan->rel = rel;// declaring that we will use the attributes given
 	//Initializing the scan structure, setting values
 	RM_ScanMgmt *scanMgmt = (RM_ScanMgmt*)malloc(sizeof(RM_ScanMgmt)); //declare memory size
@@ -494,6 +539,7 @@ extern RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond) {
 	return RC_OK;
 }
 extern RC next (RM_ScanHandle *scan, Record *record) {
+	printf("next Scan\n");//looking for error, remove later.
 	RID rid;
 	Value *result;
 	//Get page number of scan
@@ -550,6 +596,7 @@ extern RC next (RM_ScanHandle *scan, Record *record) {
  */
 extern RC closeScan (RM_ScanHandle *scan)
 {
+	printf("Close Scan\n");//looking for error, remove later.
 	//clear current mgmtData
 	scan->mgmtData=NULL;
 	free(scan->mgmtData);
@@ -559,7 +606,76 @@ extern RC closeScan (RM_ScanHandle *scan)
 	return RC_OK;
 }
 
-    // dealing with schemas -from internet here on out
+    // dealing with schemas -from Anushka
+
+// Get record size
+int getRecordSize(Schema *schema) {
+    int size = 0;
+    for (int i = 0; i < schema->numAttr; i++) {
+        switch (schema->dataTypes[i]) {
+            case DT_INT: size += sizeof(int); break;
+            case DT_FLOAT: size += sizeof(float); break;
+            case DT_BOOL: size += sizeof(bool); break;
+            case DT_STRING: size += schema->typeLength[i]; break;
+        }
+    }
+    return size;
+}
+
+// Create a schema
+Schema *createSchema(int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys) {
+    Schema *schema = (Schema *)malloc(sizeof(Schema));
+    schema->numAttr = numAttr;
+    schema->attrNames = attrNames;
+    schema->dataTypes = dataTypes;
+    schema->typeLength = typeLength;
+    schema->keyAttrs = keys;
+    schema->keySize = keySize;
+    return schema;
+}
+
+// Free schema
+RC freeSchema(Schema *schema) {
+    free(schema);
+    return RC_OK;
+}
+
+// Create a record
+RC createRecord(Record **record, Schema *schema) {
+    *record = (Record *)malloc(sizeof(Record));
+    (*record)->data = (char *)malloc(PAGE_SIZE);
+    memset((*record)->data, '\0', PAGE_SIZE);
+    return RC_OK;
+}
+
+// Free a record
+RC freeRecord(Record *record) {
+    free(record->data);
+    free(record);
+    return RC_OK;
+}
+
+// Get an attribute
+RC getAttr(Record *record, Schema *schema, int attrNum, Value **value) {
+    *value = (Value *)malloc(sizeof(Value));
+    int offset = 0;
+    for (int i = 0; i < attrNum; i++) {
+        offset += (schema->dataTypes[i] == DT_INT) ? sizeof(int) : (schema->dataTypes[i] == DT_STRING) ? schema->typeLength[i] : sizeof(float);
+    }
+    memcpy(&(*value)->v, record->data + offset, sizeof(Value));
+    return RC_OK;
+}
+
+// Set an attribute
+RC setAttr(Record *record, Schema *schema, int attrNum, Value *value) {
+    int offset = 0;
+    for (int i = 0; i < attrNum; i++) {
+        offset += (schema->dataTypes[i] == DT_INT) ? sizeof(int) : (schema->dataTypes[i] == DT_STRING) ? schema->typeLength[i] : sizeof(float);
+    }
+    memcpy(record->data + offset, &value->v, sizeof(Value));
+    return RC_OK;
+}
+/*
 extern int getRecordSize (Schema *schema)
 	{
      	int i, recordSize = 0;
@@ -725,3 +841,4 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
      	return RC_OK;
 	}
 
+*/
