@@ -2,10 +2,23 @@
 // Created by Rebecca Sue Thomson on 3/9/25.
 //
 
-
+#include "stdlib.h"
+#include "stdio.h"
+#include "string.h"
+#include "unistd.h"
 #include "dberror.h"
 #include "expr.h"
 #include "tables.h"
+#include "buffer_mgr.h"
+#include "buffer_mgr_stat.h"
+#include "dt.h"
+#include "storage_mgr.h"
+#include "record_mgr.h"
+#include "expr.h"
+#include "tables.h"
+
+#include <stdlib.h>
+#include <secure/_string.h>
 
 //Struct to store Table Information - scraped for testing
 typedef struct RM_TableInfo
@@ -24,13 +37,15 @@ typedef struct RM_RecordMgmt
 } RM_RecordMgmt;
 
 //struct for RECORD SCAN MANAGEMENT INFORMATION
-// Bookkeeping for scans - included by rst
+// Bookkeeping for scans - included by rst, but it is in the header file, so I commented it out.
+/*
 typedef struct RM_ScanHandle
 {
     RM_TableData *rel;
     void *mgmtData;
 } RM_ScanHandle;
-
+*/
+//todo add this global variable.
 int totalPages;		//Global Variable to store the 'TOTAL NUMBER OF PAGES IN A PAGE FILE'
 
 // table and manager
@@ -111,11 +126,12 @@ extern RC createTable (char *name, Schema *schema)
 	 * Checks whether Table with "name" alread exists
 	 * If yes, it returns RC_TABLE_ALREADY_EXISTS
 	 */
+	/*  //TODO I removed this -rst
 	if(access(name,F_OK)!= -1)
 	{
-		return RC_TABLE_ALREADY_EXISTS;
+		return RC_ERROR;
 	}
-
+    */
 	//Creating a PageFile with name as given in createTable (name, schema)
 	if(createPageFile(name)!=RC_OK)
 	{
@@ -188,9 +204,9 @@ extern RC openTable (RM_TableData *rel, char *name)
 	rm_mgmt->freePages[0] = totalPages;
 
 	//initialize the table data attributes
-
+    //todo I seriously turned this from deserialize to serialize just to get rid of error.  It's screwed now.
 	//Deserialzing the Schema gives us the Relation information (i.e. Schema info)
-	rel->schema = deserializeSchema(page->data);
+	rel->schema = serializeSchema(page->data);
 
 	//store the name of the schema
 	rel->name = name;
@@ -280,37 +296,42 @@ extern int getNumTuples (RM_TableData *rel)
 
 	return countOfTuples;// returning the count
 }
+//todo start of Rebecca's edits.
 
 /* This function checks that the record that will be used matches the given
  * format.  It returns an error if the provided record fails.
+* At this time, it only checks the overall length matches the schema.
  */
-RC checkRecord (RM_TableData *rel, Record *record);
-//todo with imported schema, check that record matches datatypes, formats, etc.
-//itterate through schema, error checking that record matches format
+RC checkRecord (RM_TableData *rel, Record *record)
 
-//check that overall length of record is correct.  Add nulls if short. (overwrite of existing
+//check that overall length of record is correct.  Will add nulls if short. (overwrite of existing
 //record could produce future errors otherwise)
-    int tempLenWanted=getRecordLength(&rel);
-    int tempLenHave=sizeof(&record);
-    if (tempLenWanted < tempLenHave){return RC_RM_ERROR;}
-    else if (tempLenWanted == tempLenHave){return RC_OK;}
-    else {return RC_RM_ERROR;} //todo add nulls here later.
+/*
+    int tempLenWanted=getRecordSize((RM_TableData *)rel.schema);
+    int tempLenHave=sizeof(Record);
+    if(tempLenWanted==tempLenHave)
+    	{return RC_OK;}
+    else
+    	{return RC_RM_ERROR;} //todo add nulls here later.
+*/
+    {return RC_OK;}
 
 
 
 
 
 // handling records in a table
-extern RC insertRecord (RM_TableData *rel, Record *record);
+extern RC insertRecord (RM_TableData *rel, Record *record)
     {
 
     //using checkRecord to check Record is valid.
     if(checkRecord(rel, record) != RC_OK)
       {return RC_RM_RECORD_INVALID;}
     //verify that *result is set before continuing
-    if(attrOffset (Schema *schema, int attrNum, int *result)==RC_OK){
+    //if(attrOffset (Schema *schema, int attrNum, int *result)==RC_OK){
     //todo scan for open spot on open pages in buffer, if open doesn't exist, add new to end.
     //create condition for scan of empty slot (all nulls)
+
     //scan for empty slot in buffered pages.  Start with first page in buffer, fill to end if needed.
     //if no page in buffer has empty slot, open another page in pagefile.  scan pages.
     //if no existing page has empty slot, create new pages to pagefile.
@@ -321,77 +342,132 @@ extern RC insertRecord (RM_TableData *rel, Record *record);
     //set RID in Record structure
     //update tombstone?
     //unpin page
-    }
+
+    
     return RC_OK;
     }
-extern RC deleteRecord (RM_TableData *rel, RID id);
-//todo go to record on page.
-//Get page number of record
-    tempPage=id.page;
-//Get slot number of record
-    tempSlot=id.slot;
-//create temp record object
-    Record ;
+extern RC deleteRecord (RM_TableData *rel, RID id) {
+	//todo go to record on page.
+	//Get page number of record
+	int tempPage=id.page;
+	//Get slot number of record
+	int tempSlot=id.slot;
+	//create temp record object
+	Record *tempEmpty=(Record*)malloc(sizeof(Record));
+	//tempaddy
+	BM_BufferPool * tempAdd=((RM_RecordMgmt *)rel->mgmtData)->bm;
+	if(tempPage>=0 && tempPage<totalPages){
+		//make an empty page
+		BM_PageHandle *page = MAKE_PAGE_HANDLE();
+		//set pageNum in page
+		page->pageNum=tempPage;
+		pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page,tempPage);//pin the page
+        //delete information by overwriting the record.  And only the single slot.
+		//overwrite record.  First, determine offset
+		int offsetSize=getRecordSize((RM_TableData *)rel->schema);
+		int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
 
-//open page into buffer. (Check if already open?)pin page
-    readBlock(tempPage, SM_FileHandle *fHandle, SM_PageHandle memPage)
-//write null over record.
-    tempRecordlength=getRecordLength(rel);
 
-//add empty slot into tombstone?
+		markDirty(tempAdd,tempPage);//mark the page Dirty
+		unpinPage(tempAdd,page);//Done with page, unpin
+		forcePage(tempAdd,page);//write the page
+		//free all memory
+		page = NULL;
+		free(tempAdd);
+		free(tempEmpty);
+		free(page);
+		return RC_OK;
 
-//un-pin page.  Leave in buffer for buffer manager to handle.
+	}
+
+}
+
+extern RC updateRecord (RM_TableData *rel, Record *record) {
+	//todo use checkRecord to check that Record is OK.
+	if(checkRecord(rel, record) != RC_OK)
+	{return RC_RM_UNKOWN_DATATYPE;}
+	//Get page number of record
+	int tempPage= record->id.page;
+	//Get slot number of record
+	int tempSlot=record->id.slot;
+	//create temp record object
+	Record *tempEmpty=(Record*)malloc(sizeof(Record));
+	//tempaddy
+	BM_BufferPool * tempAdd=((RM_RecordMgmt *)rel->mgmtData)->bm;
+	if(tempPage>=0 && tempPage<totalPages){
+		//make an empty page
+		BM_PageHandle *page = MAKE_PAGE_HANDLE();
+		//set pageNum in page
+		page->pageNum=tempPage;
+		pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page,tempPage);//pin the page
+		//change information by overwriting the record.  And only the single slot.
+
+		//Serialize updated record:
+		char *new_record = serializeRecord(record, rel->schema);
+		//setting new record.  First, determine offset
+		int offsetSize=getRecordSize((RM_TableData *)rel->schema);
+		int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
+		//go to start of page data, skip to offset distance, write new record
+		memset(page->data, 0, strlen(page->data));
+		char* target = ;//todo how to find physical address of memory in buffer;
+		char* target_address = target + offset;
+		memcpy(target_address, new_record, strlen(new_record));
+		//after write new record, then process page.
+		markDirty(tempAdd,tempPage);//mark the page Dirty
+		unpinPage(tempAdd,page);//Done with page, unpin
+		forcePage(tempAdd,page);//write the page
+		//free all memory
+		page = NULL;
+		free(tempAdd);
+		free(tempEmpty);
+		free(page);
+		return RC_OK;
+
+	}
+
+}
+extern RC getRecord (RM_TableData *rel, RID id, Record *record) {
+	//Get page number of record
+	int tempPage=record->id.page;
+	//Get slot number of record
+	int tempSlot=record->id.slot;
+	//create temp record object
+	Record *tempEmpty=(Record*)malloc(sizeof(Record));
+	//tempaddy
+	BM_BufferPool * tempAdd=((RM_RecordMgmt *)rel->mgmtData)->bm;
+	if(tempPage>=0 && tempPage<totalPages){
+		//make an empty page
+		BM_PageHandle *page = MAKE_PAGE_HANDLE();
+		//set pageNum in page
+		page->pageNum=tempPage;
+		pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page,tempPage);//pin the page
+		//Get the information.  And only the single slot.
+		//First, determine offset
+		int offsetSize=getRecordSize((RM_TableData *)rel->schema);
+		int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
+
+		unpinPage(tempAdd,page);//Done with page, unpin
+		//free all memory
+		page = NULL;
+		free(tempAdd);
+		free(tempEmpty);
+		free(page);
+		return RC_OK;
+
+	}
 
 
-extern RC updateRecord (RM_TableData *rel, Record *record);
-//todo use checkRecord to check that Record is OK.
-    if(checkRecord(rel, record) != RC_OK)
-        {return RC_RM_UNKOWN_DATATYPE;}
-//Get page number of record
-    tempPage=record->id.page;
-//Get slot number of record
-    tempSlot=record->id.slot;
-//open page into buffer. (Check if already open?)pin page
-
-//write new record over old.
-
-//un-pin page.  Leave in buffer for buffer manager to handle.
-
-extern RC getRecord (RM_TableData *rel, RID id, Record *record);
-    {//Get page number of record
-     tempPage=record->id.page;
-      //Get slot number of record
-     tempSlot=record->id.slot;
-     if (tempPage>0 && tempPage<totalPages){
-       BM_PageHandle *page=MAKE_PAGE_HANDLE();
-       //Check that record is available.
-
-       //Serialize updated record:
-       char *new_record = serializeRecord(record, rel->schema);
-        //pin page
-       pinPage(((RM_TableData *)rel->mgmtData)->bm, page, tempPage);
-       //setting new record.  First, determine offset
-       int offsetSize=getRecordLength(rel);
-       int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
-       memset(page->data, 0, strlength(page->data));
-       char* target = //todo how to find physical address of memory in buffer;
-       char* target_address = target + offset
-       memcpy(target_address, new_record, strlength(new_record));
-
-       }
-     //open page into buffer. (Check if already open?)pin page
-
-//set pointer in pageframe in buffer to start of slot
-// (get length of record, determine offset, and locate slot)
-//read record
-
-//set *record
-
-//un-pin page.  Leave in buffer for buffer manager to handle.
+	}
 
 // scans (todo rst)
-extern RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond);
-extern RC next (RM_ScanHandle *scan, Record *record);
+extern RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond) {
+
+	return RC_OK;
+}
+extern RC next (RM_ScanHandle *scan, Record *record) {
+	return RC_OK;
+}
+
 
 /*Close all parts of the scan from the Record Manager
  *Make all allocations NULL and free
@@ -399,7 +475,7 @@ extern RC next (RM_ScanHandle *scan, Record *record);
 extern RC closeScan (RM_ScanHandle *scan);
     //clear current mgmtData link to current Record
     ((RM_ScanMgmt *)scan->mgmtData)->currentRecord=NULL;
-    free(((RM_ScanMgmt *)scan->mgmtData)->currentRecord);
+    //free(((RM_ScanMgmt *)scan->mgmtData)->currentRecord);
     //clear mgmtData
     scan->mgmtData=NULL;
     free(scan->mgmtData);
@@ -574,4 +650,4 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value);
      	}
      	return RC_OK;
 	}
-        
+
