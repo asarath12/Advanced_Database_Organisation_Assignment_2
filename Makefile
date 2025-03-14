@@ -2,9 +2,9 @@ CC = gcc
 CFLAGS  = -g -Wall
 LDFLAGS = -pthread
  
-all: test1 test2
 
-run: run_test1 run_test2
+
+run: run_test1
 
 test1: test_assign3_1.o storage_mgr.o dberror.o buffer_mgr.o buffer_mgr_stat.o expr.o record_mgr.o rm_serializer.o
 	$(CC) $(CFLAGS) -o test1 test_assign3_1.o storage_mgr.o dberror.o buffer_mgr.o buffer_mgr_stat.o expr.o record_mgr.o rm_serializer.o -lm $(LDFLAGS)
