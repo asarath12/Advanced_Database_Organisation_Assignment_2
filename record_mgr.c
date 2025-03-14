@@ -36,14 +36,17 @@ typedef struct RM_RecordMgmt
 } RM_RecordMgmt;
 
 //struct for RECORD SCAN MANAGEMENT INFORMATION
-// Bookkeeping for scans - included by rst, but it is in the header file, so I commented it out.
-/*
-typedef struct RM_ScanHandle
+// Bookkeeping for scans - included by rst
+
+typedef struct RM_ScanMgmt
 {
-    RM_TableData *rel;
-    void *mgmtData;
-} RM_ScanHandle;
-*/
+    Expr *condition;
+	Record *currentRecord;
+	int currentRecordPage;
+	int currentRecordSlot;
+
+} RM_ScanMgmt;
+
 //todo add this global variable.
 int totalPages;		//Global Variable to store the 'TOTAL NUMBER OF PAGES IN A PAGE FILE'
 
@@ -479,11 +482,66 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record) {
 
 // scans (todo rst)
 extern RC startScan (RM_TableData *rel, RM_ScanHandle *scan, Expr *cond) {
+	scan->rel = rel;// declaring that we will use the attributes given
+	//Initializing the scan structure, setting values
+	RM_ScanMgmt *scanMgmt = (RM_ScanMgmt*)malloc(sizeof(RM_ScanMgmt)); //declare memory size
+	scanMgmt->condition=cond; //set
+	scanMgmt->currentRecord=(Record*)malloc(sizeof(Record));//declare memory space
+	scanMgmt->currentRecordPage=0; //will add page offset when given
+	scanMgmt->currentRecordSlot=0; //assume start at beginning.
+	scan->mgmtData = scanMgmt; //store data
 
 	return RC_OK;
 }
 extern RC next (RM_ScanHandle *scan, Record *record) {
-	return RC_OK;
+	RID rid;
+	Value *result;
+	//Get page number of scan
+	rid.page = ((RM_ScanMgmt *)scan->mgmtData)->currentRecordPage;
+	//Get slot number of scan
+	rid.slot = ((RM_ScanMgmt *)scan->mgmtData)->currentRecordSlot;
+
+	//if cond==Null, return everything
+	if (((RM_ScanMgmt *)scan->mgmtData)->condition == NULL){
+		//loop through everything
+		while (rid.page>0 && rid.page<totalPages) {
+			getRecord(scan->rel,rid, ((RM_ScanMgmt *)scan->mgmtData)->currentRecord);
+			record->data = ((RM_ScanMgmt *)scan->mgmtData)->currentRecord->data;
+			record->id=((RM_ScanMgmt *)scan->mgmtData)->currentRecord->id;
+			((RM_ScanMgmt *)scan->mgmtData)->currentRecordPage++;//update current page
+			//now set new page details
+			rid.page=((RM_ScanMgmt *)scan->mgmtData)->currentRecordPage;
+			rid.slot=((RM_ScanMgmt *)scan->mgmtData)->currentRecordSlot;
+		}
+		return RC_OK;
+	}
+	else {
+		//other condition, loop through everything
+		while (rid.page>0 && rid.page<totalPages) {
+			getRecord(scan->rel,rid, ((RM_ScanMgmt *)scan->mgmtData)->currentRecord);
+			//evaluate record
+			evalExpr(((RM_ScanMgmt *)scan-> mgmtData)->currentRecord,scan->rel->schema,((RM_ScanMgmt *)scan->mgmtData)->condition, &result);
+			if (result->dt ==DT_BOOL && result->v.boolV) {
+				record->data = ((RM_ScanMgmt *)scan->mgmtData)->currentRecord->data;
+				record->id=((RM_ScanMgmt *)scan->mgmtData)->currentRecord->id;
+				((RM_ScanMgmt *)scan->mgmtData)->currentRecordPage++;//update current page
+				//now set new page details
+				rid.page=((RM_ScanMgmt *)scan->mgmtData)->currentRecordPage;
+				rid.slot=((RM_ScanMgmt *)scan->mgmtData)->currentRecordSlot;
+				return RC_OK;
+			}else {//not found, step forward
+				((RM_ScanMgmt *)scan->mgmtData)->currentRecordPage++;//update current page
+				//now set new page details
+				rid.page=((RM_ScanMgmt *)scan->mgmtData)->currentRecordPage;
+				rid.slot=((RM_ScanMgmt *)scan->mgmtData)->currentRecordSlot;
+			}
+		}
+	}
+	//re-initialize
+	((RM_ScanMgmt *)scan->mgmtData)->currentRecordPage=0;
+	((RM_ScanMgmt *)scan->mgmtData)->currentRecordSlot=0;
+
+	return RC_RM_NO_MORE_TUPLES; //nothing found
 }
 
 
