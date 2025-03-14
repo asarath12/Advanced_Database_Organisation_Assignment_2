@@ -14,13 +14,12 @@
 #include "dt.h"
 #include "storage_mgr.h"
 #include "record_mgr.h"
-#include "expr.h"
-#include "tables.h"
+
 
 #include <stdlib.h>
 #include <secure/_string.h>
 
-//Struct to store Table Information - scraped for testing
+//Struct to store Table Information - taken from internet for testing
 typedef struct RM_TableInfo
 {
     int numOfTuples;
@@ -346,6 +345,7 @@ extern RC insertRecord (RM_TableData *rel, Record *record)
     
     return RC_OK;
     }
+
 extern RC deleteRecord (RM_TableData *rel, RID id) {
 	//todo go to record on page.
 	//Get page number of record
@@ -356,17 +356,21 @@ extern RC deleteRecord (RM_TableData *rel, RID id) {
 	Record *tempEmpty=(Record*)malloc(sizeof(Record));
 	//tempaddy
 	BM_BufferPool * tempAdd=((RM_RecordMgmt *)rel->mgmtData)->bm;
-	if(tempPage>=0 && tempPage<totalPages){
+	//totalPages=
+	if(tempPage>=0 /*&& tempPage<totalPages*/){
 		//make an empty page
 		BM_PageHandle *page = MAKE_PAGE_HANDLE();
 		//set pageNum in page
 		page->pageNum=tempPage;
+		char *tempVoid = (char*)malloc(sizeof(char));//a meno of nothing for overwriting.
 		pinPage(((RM_RecordMgmt *)rel->mgmtData)->bm,page,tempPage);//pin the page
         //delete information by overwriting the record.  And only the single slot.
 		//overwrite record.  First, determine offset
 		int offsetSize=getRecordSize((RM_TableData *)rel->schema);
 		int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
-
+		//overwrites entire page.
+		memset(page->data,'\0',strlen(page->data));
+		sprintf(page->data,"%s",tempVoid);
 
 		markDirty(tempAdd,tempPage);//mark the page Dirty
 		unpinPage(tempAdd,page);//Done with page, unpin
@@ -378,7 +382,7 @@ extern RC deleteRecord (RM_TableData *rel, RID id) {
 		free(page);
 		return RC_OK;
 
-	}
+	}else{return RC_ERROR;}
 
 }
 
@@ -390,11 +394,10 @@ extern RC updateRecord (RM_TableData *rel, Record *record) {
 	int tempPage= record->id.page;
 	//Get slot number of record
 	int tempSlot=record->id.slot;
-	//create temp record object
-	Record *tempEmpty=(Record*)malloc(sizeof(Record));
+
 	//tempaddy
 	BM_BufferPool * tempAdd=((RM_RecordMgmt *)rel->mgmtData)->bm;
-	if(tempPage>=0 && tempPage<totalPages){
+	if(tempPage>=0 /*&& tempPage<totalPages*/){
 		//make an empty page
 		BM_PageHandle *page = MAKE_PAGE_HANDLE();
 		//set pageNum in page
@@ -408,11 +411,15 @@ extern RC updateRecord (RM_TableData *rel, Record *record) {
 		int offsetSize=getRecordSize((RM_TableData *)rel->schema);
 		int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
 		//go to start of page data, skip to offset distance, write new record
-		memset(page->data, 0, strlen(page->data));
+		memset(page->data, '\0', strlen(page->data));
+		sprintf(page->data,"%s",new_record);
+		//this will be used if I figure out how to have more than one record per page
+		/*
 		char* target = &page->data;
 		printf("this is the target: %d",target);//todo how to find physical address of memory in buffer;
 		char* target_address = target + offset;
 		memcpy(target_address, new_record, strlen(new_record));
+		*/
 		//after write new record, then process page.
 		markDirty(tempAdd,tempPage);//mark the page Dirty
 		unpinPage(tempAdd,page);//Done with page, unpin
@@ -420,11 +427,12 @@ extern RC updateRecord (RM_TableData *rel, Record *record) {
 		//free all memory
 		page = NULL;
 		free(tempAdd);
-		free(tempEmpty);
+		free(new_record);
 		free(page);
 		return RC_OK;
 
 	}
+	else{return RC_ERROR;}
 
 }
 extern RC getRecord (RM_TableData *rel, RID id, Record *record) {
@@ -432,11 +440,11 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record) {
 	int tempPage=record->id.page;
 	//Get slot number of record
 	int tempSlot=record->id.slot;
-	//create temp record object
-	Record *tempEmpty=(Record*)malloc(sizeof(Record));
+	//using given record object for return.
+	//Record *tempReturn=(Record*)malloc(sizeof(Record));
 	//tempaddy
 	BM_BufferPool * tempAdd=((RM_RecordMgmt *)rel->mgmtData)->bm;
-	if(tempPage>=0 && tempPage<totalPages){
+	if(tempPage>=0 /*&& tempPage<totalPages*/){
 		//make an empty page
 		BM_PageHandle *page = MAKE_PAGE_HANDLE();
 		//set pageNum in page
@@ -446,16 +454,25 @@ extern RC getRecord (RM_TableData *rel, RID id, Record *record) {
 		//First, determine offset
 		int offsetSize=getRecordSize((RM_TableData *)rel->schema);
 		int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
+		//temp to store the page data
+		char *r_data = (char*)malloc(sizeof(char) * strlen(page->data));
+		//now copy the data
+		strcpy(r_data,page->data);
+		//assign the id to the record
+		record->id = id;
+		//the data must be deserialized before use.  however, this is only puting one record per page.
+		record->data = r_data;
+
 
 		unpinPage(tempAdd,page);//Done with page, unpin
 		//free all memory
 		page = NULL;
 		free(tempAdd);
-		free(tempEmpty);
+		free(r_data);
 		free(page);
 		return RC_OK;
 
-	}
+	}else {return RC_ERROR;}
 
 
 	}
