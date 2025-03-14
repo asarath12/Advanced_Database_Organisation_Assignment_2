@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "test_helper.h": "c",
+        "expr.h": "c",
+        "stdlib.h": "c"
+    }
+}
