@@ -399,7 +399,7 @@ extern RC deleteRecord (RM_TableData *rel, RID id) {
 	//tempaddy
 	BM_BufferPool * tempAdd=((RM_RecordMgmt *)rel->mgmtData)->bm;
 	//totalPages=
-	if(tempPage>=0 /*&& tempPage<totalPages*/){
+	if(tempPage>=0 && tempPage<fh_rec_mgr.totalNumPages - 2) {//todo watch overall page count
 		//make an empty page
 		BM_PageHandle *page = MAKE_PAGE_HANDLE();
 		//set pageNum in page
@@ -440,7 +440,7 @@ extern RC updateRecord (RM_TableData *rel, Record *record) {
 
 	//tempaddy
 	BM_BufferPool * tempAdd=((RM_RecordMgmt *)rel->mgmtData)->bm;
-	if(tempPage>=0 /*&& tempPage<totalPages*/){
+	if(tempPage>=0 && tempPage<fh_rec_mgr.totalNumPages - 2) {//todo watch overall page count
 		//make an empty page
 		BM_PageHandle *page = MAKE_PAGE_HANDLE();
 		//set pageNum in page
@@ -542,6 +542,10 @@ extern RC next (RM_ScanHandle *scan, Record *record) {
 	printf("next Scan\n");//looking for error, remove later.
 	RID rid;
 	Value *result;
+	if (fh_rec_mgr.fileName == NULL) {
+		openPageFile(scan->rel->name, &fh_rec_mgr);
+	}
+
 	//Get page number of scan
 	rid.page = ((RM_ScanMgmt *)scan->mgmtData)->currentRecordPage;
 	//Get slot number of scan
@@ -550,7 +554,7 @@ extern RC next (RM_ScanHandle *scan, Record *record) {
 	//if cond==Null, return everything
 	if (((RM_ScanMgmt *)scan->mgmtData)->condition == NULL){
 		//loop through everything
-		while (rid.page>0 && rid.page<totalPages) {
+		while (rid.page>0 && rid.page<fh_rec_mgr.totalNumPages - 2) {//todo watch overall page count
 			getRecord(scan->rel,rid, ((RM_ScanMgmt *)scan->mgmtData)->currentRecord);
 			record->data = ((RM_ScanMgmt *)scan->mgmtData)->currentRecord->data;
 			record->id=((RM_ScanMgmt *)scan->mgmtData)->currentRecord->id;
@@ -563,7 +567,7 @@ extern RC next (RM_ScanHandle *scan, Record *record) {
 	}
 	else {
 		//other condition, loop through everything
-		while (rid.page>0 && rid.page<totalPages) {
+		while (rid.page>0 && rid.page<fh_rec_mgr.totalNumPages - 2) {//todo watch overall page count
 			getRecord(scan->rel,rid, ((RM_ScanMgmt *)scan->mgmtData)->currentRecord);
 			//evaluate record
 			evalExpr(((RM_ScanMgmt *)scan-> mgmtData)->currentRecord,scan->rel->schema,((RM_ScanMgmt *)scan->mgmtData)->condition, &result);
