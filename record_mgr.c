@@ -409,7 +409,8 @@ extern RC updateRecord (RM_TableData *rel, Record *record) {
 		int offset=(tempSlot)*offsetSize;//start of slot (assuming start at zero)
 		//go to start of page data, skip to offset distance, write new record
 		memset(page->data, 0, strlen(page->data));
-		char* target = ;//todo how to find physical address of memory in buffer;
+		char* target = &page->data;
+		printf("this is the target: %d",target);//todo how to find physical address of memory in buffer;
 		char* target_address = target + offset;
 		memcpy(target_address, new_record, strlen(new_record));
 		//after write new record, then process page.
@@ -472,21 +473,19 @@ extern RC next (RM_ScanHandle *scan, Record *record) {
 /*Close all parts of the scan from the Record Manager
  *Make all allocations NULL and free
  */
-extern RC closeScan (RM_ScanHandle *scan);
-    //clear current mgmtData link to current Record
-    ((RM_ScanMgmt *)scan->mgmtData)->currentRecord=NULL;
-    //free(((RM_ScanMgmt *)scan->mgmtData)->currentRecord);
-    //clear mgmtData
-    scan->mgmtData=NULL;
-    free(scan->mgmtData);
-    //clear scan
-    scan=NULL;
-    free(scan);
-    return RC_OK;
-
+extern RC closeScan (RM_ScanHandle *scan)
+{
+	//clear current mgmtData
+	scan->mgmtData=NULL;
+	free(scan->mgmtData);
+	//clear scan
+	scan=NULL;
+	free(scan);
+	return RC_OK;
+}
 
     // dealing with schemas -from internet here on out
-extern int getRecordSize (Schema *schema);
+extern int getRecordSize (Schema *schema)
 	{
      	int i, recordSize = 0;
 
@@ -505,7 +504,7 @@ extern int getRecordSize (Schema *schema);
      	return recordSize;
 	}
 
-extern Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys);
+extern Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys)
 	{
      	//allocate memory for Schema to be created
      	Schema *newSchema = (Schema*)malloc(sizeof(Schema));
@@ -521,7 +520,7 @@ extern Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes,
      	return newSchema;
 	}
 
-extern RC freeSchema (Schema *schema);
+extern RC freeSchema (Schema *schema)
 	{
      	free(schema);
      	return RC_OK;
@@ -529,14 +528,14 @@ extern RC freeSchema (Schema *schema);
 
 
 // dealing with records and attribute values
-extern RC createRecord (Record **record, Schema *schema);
+extern RC createRecord (Record **record, Schema *schema)
 	{
      	*record = (Record*)malloc(sizeof(Record));
      	(*record)->data = (char*)malloc(getRecordSize(schema));
 
      	return RC_OK;
 	}
-extern RC freeRecord (Record *record);
+extern RC freeRecord (Record *record)
 	{
      	//data is free'd first
      	record->data = NULL;
@@ -549,7 +548,7 @@ extern RC freeRecord (Record *record);
      	return RC_OK;
 	}
 
-extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value);
+extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value)
 	{
      	//variables for offset
      	int offset;
@@ -596,13 +595,13 @@ extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value);
      		break;
 
      		default:			//if different data encountered other than INT, FLOAT, BOOL, STRING return (EC 402)
-     			return RC_RM_NO_DESERIALIZER_FOR_THIS_DATATYPE;
+     			return RC_ERROR;
      	}
 
      	return RC_OK;
 	}
 
-extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value);
+extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value)
 	{
      	//Modifying rm_serializer serializeAttr
      	int offset;
@@ -646,7 +645,7 @@ extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value);
      		break;
 
      		default:
-     			return RC_RM_NO_DESERIALIZER_FOR_THIS_DATATYPE;
+     			return RC_ERROR;
      	}
      	return RC_OK;
 	}
