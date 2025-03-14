@@ -33,12 +33,7 @@ The `assign3` folder contains the following files:
 📌 **Additional:**
 - **Output PDF** (`assign3/RecordManagerOutput.pdf`) - Screenshots of successful test executions.
 
----
 
----
-
-
----
 
 ## 🚀 Functions & Descriptions
 
