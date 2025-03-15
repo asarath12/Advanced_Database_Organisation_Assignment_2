@@ -62,6 +62,62 @@ The `assign3` folder contains the following files:
   _The function getNumTuples retrieves the number of tuples (records) in a given relation (table).It is a getter function used to access metadata related to the table._
 
 
+- `extern RC insertRecord (RM_TableData *rel, Record *record)`  
+  _The function insertRecord inserts a new record into a table by finding a free slot in a buffered page, updating metadata, and writing data into the slot.._
+
+
+- ` extern RC deleteRecord(RM_TableData *rel, RID id) `  
+  _The function marks a record as deleted in a buffered page, updates metadata, and writes the changes back to disk.._
+
+
+
+
+- ` extern RC updateRecord (RM_TableData *rel, Record *record) `  
+  _The function updates an existing record in a buffered page, marks it as modified, and writes the changes back to disk.._
+
+
+- `extern RC getRecord(RM_TableData *rel, RID id, Record *record)`  
+  _The function retrieves a record from a table using its Record ID (RID).._
+
+
+- ` extern RC startScan(RM_TableData *rel, RM_ScanHandle *scan, Expr *cond) `  
+  _This function initiates a scan on a table, applying a condition (Expr *cond) to filter records._
+
+
+- ` extern RC next (RM_ScanHandle *scan, Record *record) `  
+  _It scans the records sequentially, applies conditions (if any), and returns the next valid tuple._
+
+
+- ` extern RC closeScan (RM_ScanHandle *scan) `  
+  _This closes an ongoing scan operation in a record manager system. It resets relevant metadata and releases any allocated resources.._
+
+
+- `extern int getRecordSize (Schema *schema)`  
+  _It calculates and returns the total size of a record based on its attributes and their data types._
+
+
+- ` extern Schema *createSchema (int numAttr, char **attrNames, DataType *dataTypes, int *typeLength, int keySize, int *keys)`  
+  _This function dynamically creates a Schema structure,initializes its fields,  and returns a pointer to it._
+
+
+- ` extern RC freeSchema (Schema *schema) `  
+  _This function frees the allocated memory for a Schema structure._
+
+- `extern RC createRecord (Record **record, Schema *schema)`  
+  _This function is responsible for creating and initializing a new Record structure based on a given Schema._
+
+
+- `extern RC freeRecord (Record *record)`  
+  _This function is responsible for deallocating memory associated with a Record object._
+
+
+- ` extern RC getAttr (Record *record, Schema *schema, int attrNum, Value **value) `  
+  _This function retrieves the value of a specific attribute from a given record based on the schema._
+
+
+- `extern RC setAttr (Record *record, Schema *schema, int attrNum, Value *value);`  
+  _This function sets the value of a specific attribute in a given record according to the schema._
+
 
 
 
@@ -97,7 +153,7 @@ make run > output_3.txt
 ## 🎥 Video Demonstration
 A video demonstration of the project is available at the following link:
 
- [Watch the Project Demo]
+https://www.loom.com/share/01c76ef8a42b4aff832b5b9ae301dfc2?sid=ac89594f-b5e0-4178-9839-d0cbc31e682d
 
 Click the link above to watch the demonstration .
 
