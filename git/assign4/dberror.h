@@ -14,11 +14,10 @@ typedef int RC;
 #define RC_FILE_HANDLE_NOT_INIT 2
 #define RC_WRITE_FAILED 3
 #define RC_READ_NON_EXISTING_PAGE 4
-//added error codes for more specificity in debugging user errors
 #define RC_FILE_ALREADY_EXISTS 5
 #define RC_ERROR 6
 #define RC_READ_FAILED 7
-#define RC_APPEND_FAILED 9
+#define RC_BUFFER_POOL_HAS_PINNED_PAGES 8
 
 #define RC_RM_COMPARE_VALUE_OF_DIFFERENT_DATATYPE 200
 #define RC_RM_EXPR_RESULT_IS_NOT_BOOLEAN 201
@@ -31,7 +30,17 @@ typedef int RC;
 #define RC_IM_KEY_ALREADY_EXISTS 301
 #define RC_IM_N_TO_LAGE 302
 #define RC_IM_NO_MORE_ENTRIES 303
+#define RC_SCAN_CONDITION_NOT_FOUND 601
 
+#define RC_RM_NO_TUPLE_WITH_GIVEN_RID 600
+#define RC_PINNED_PAGES_IN_BUFFER 500 
+#define RC_SCAN_CONDITION_NOT_FOUND 601
+#define RC_INVALID_PAGENUM 6
+#define RC_BUFFER_POOL_NOT_FOUND 5
+#define RC_SCHEMA_ERROR 109
+#define RC_WRITE_BACK_FAILED 7
+#define RC_PAGE_NOT_FOUND_ERROR 10
+#define RC_BUFFER_ERROR 69
 /* holder for error messages */
 extern char *RC_message;
 
