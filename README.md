@@ -5,9 +5,9 @@ Advanced Database Organizations
 
 ## Team Members
 
-- A20555189 	Anish Roy            33.33%
-- A20576979 	Anushka Sarath       33.33%
-- A20548618 	Rebecca Thomson      33.33%
+- A20555189-----Anish Roy------------33.33%
+- A20576979-----Anushka Sarath-------33.33%
+- A20548618-----Rebecca Thomson------33.33%
 
 
 ## Team Contribution
