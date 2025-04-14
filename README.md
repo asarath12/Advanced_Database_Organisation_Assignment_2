@@ -17,7 +17,7 @@ Advanced Database Organizations
 • extern RC getNumEntries (BTreeHandle *tree, int *result);
 • extern RC getKeyType (BTreeHandle *tree, DataType *result);
 • extern RC findKey (BTreeHandle *tree, Value *key, RID *result);
-• extern RC insertKey (BTreeHandle *tree, Value *key, RID rid);
+• loom video presentation
 • merging code and testing
 
 **Anushka Sarath** :
@@ -26,7 +26,8 @@ Advanced Database Organizations
 • extern RC createBtree (char *idxId, DataType keyType, int n);
 • extern RC openBtree (BTreeHandle **tree, char *idxId);
 • extern RC closeBtree (BTreeHandle *tree);
-• loom video presentation
+• extern RC insertKey (BTreeHandle *tree, Value *key, RID rid);
+
 
 
 **Rebecca Thomson** : 
